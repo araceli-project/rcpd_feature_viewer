@@ -93,7 +93,8 @@ def get_age_gender_vector(batch, mtcnn, model=None):
             open("models/model_age/vgg16_agegender_model.json").read()
         )
 
-    batch_age_gender_vector = []
+    feature_dim = 4096
+    batch_age_gender_vector = np.zeros((len(batch), feature_dim), dtype=np.float32)
 
     config = tf.ConfigProto(device_count={"GPU": 0})
     sess = tf.Session(config=config)
@@ -101,65 +102,50 @@ def get_age_gender_vector(batch, mtcnn, model=None):
 
     with sess:
         model.load_weights("models/model_age/vgg16_agegender.hdf5")
-        feature_model = keras.Model(
+        age_and_feature_model = keras.Model(
             inputs=model.input,
-            outputs=model.get_layer("fc2").output,
+            outputs=[model.output[0], model.get_layer("fc2").output],
         )
 
         for i, image in enumerate(batch):
             faces = get_face_imgs(image, mtcnn=mtcnn)
-            features = []
-            if len(faces) != 0:
-                for face in faces:
-                    if face.shape[0] == 3:
-                        face = face.transpose((1, 2, 0))
-                    face = transform.resize(face, (128, 128))
-                    preds = model.predict(face[None, :, :, :])
-                    age = preds[0][0].tolist()
-                    index_with_max_prob = np.argmax(age)
-                    features.append(
-                        (
-                            index_with_max_prob,
-                            feature_model.predict(face[None, :, :, :]),
-                        )
-                    )
-                features = sorted(features, key=lambda x: x[0])
-                batch_age_gender_vector.append(features[0][1])
+            if len(faces) == 0:
+                continue
 
-            else:
-                batch_age_gender_vector.append(np.zeros((1, 4096)))
-    features = np.array(batch_age_gender_vector).squeeze()
+            prepared_faces = []
+            for face in faces:
+                if face.shape[0] == 3:
+                    face = face.transpose((1, 2, 0))
+                face = transform.resize(face, (128, 128), preserve_range=True)
+                prepared_faces.append(face.astype(np.float32))
 
-    return features
+            face_batch = np.stack(prepared_faces, axis=0)
+            age_probs, face_features = age_and_feature_model.predict(face_batch, verbose=0)
+            age_bins = np.argmax(age_probs, axis=1)
+            selected_face_idx = int(np.argmin(age_bins))
+            batch_age_gender_vector[i] = face_features[selected_face_idx]
+
+    return batch_age_gender_vector
 
 
 def get_ita_vector(batch, mtcnn, model=None):
     if model is None:
         model = SkinTone("models/fitzpatrick/shape_predictor_68_face_landmarks.dat")
 
-    batch_ita_vector = []
+    features = np.zeros((len(batch), 1), dtype=np.float32)
+    for i, image in enumerate(batch):
+        faces = get_face_imgs(image, mtcnn=mtcnn)
+        if len(faces) == 0:
+            continue
 
-    config = tf.ConfigProto(device_count={"GPU": 0})
-    sess = tf.Session(config=config)
-    K.set_session(sess)
+        ita_values = []
+        for face in faces:
+            if face.shape[0] == 3:
+                face = face.transpose((1, 2, 0))
+            ita, _ = model.ITA(face)
+            ita_values.append(float(ita))
 
-    with sess:
-        for i, image in enumerate(batch):
-            faces = get_face_imgs(image, mtcnn=mtcnn)
-            skin_ita = []
-            if len(faces) != 0:
-                for face in faces:
-                    if face.shape[0] == 3:
-                        face = face.transpose((1, 2, 0))
-                    ita, patch = model.ITA(face)
-                    skin_ita.append(ita)
-                skin_ita = np.array(skin_ita)
-                batch_ita_vector.append(
-                    np.mean(skin_ita, axis=0, keepdims=True).reshape((1, 1))
-                )
-            else:
-                batch_ita_vector.append(np.zeros((1, 1)))
-    features = np.array(batch_ita_vector).squeeze(axis=2)
+        features[i, 0] = float(np.mean(ita_values))
 
     return features
 
@@ -175,7 +161,13 @@ def get_face_imgs(img, mtcnn=None):
         # logging.info("No faces detected")
         return []
 
-    faces = (faces.numpy() * 255).astype(np.uint8)
+    faces = faces.numpy().astype(np.float32)
+    # facenet-pytorch can return standardized faces in [-1, 1]. Convert safely to [0, 255].
+    if np.min(faces) < 0:
+        faces = (faces * 128.0) + 127.5
+    elif np.max(faces) <= 1.0:
+        faces = faces * 255.0
+    faces = np.clip(faces, 0.0, 255.0).astype(np.uint8)
     # logging.info(f"Detected {len(faces)} faces")
 
     return faces
@@ -234,28 +226,27 @@ def get_pose_vector(batch, model=None):
 
 
 def get_nsfw_vector(batch, device=None, processor=None, model=None):
+    if device is None:
+        if model is not None:
+            device = next(model.parameters()).device
+        else:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if processor is None or model is None:
         processor = ViTImageProcessor.from_pretrained("AdamCodd/vit-base-nsfw-detector")
         model = AutoModelForImageClassification.from_pretrained(
             "AdamCodd/vit-base-nsfw-detector"
         ).to(device)
+    else:
+        model = model.to(device)
 
-    features = []
+    model.eval()
+    pixel_values = processor(images=batch, return_tensors="pt")["pixel_values"].to(device)
+    with torch.inference_mode():
+        vit_outputs = model.vit(pixel_values=pixel_values, return_dict=True)
 
-    def hook(_, __, output):
-        features.append(output.detach())
-
-    handle = model.vit.layernorm.register_forward_hook(hook)
-
-    inputs = processor(images=batch, return_tensors="pt")
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    with torch.no_grad():
-        model(**inputs)
-
-    handle.remove()
     logging.info("NSFW feature processed")
-    feature = features[0][:, 0, :]
-    feature = feature.cpu().numpy()
+    feature = vit_outputs.last_hidden_state[:, 0, :].cpu().numpy()
     logging.info(f"NSFW feature shape: {feature.shape}")
     return feature
 
@@ -312,9 +303,7 @@ def get_scene_vector(batch, model=None):
         model.forward(input_img)
     handle.remove()
     logging.info("Scene Classification feature processed")
-    feature = np.array(features)
-    if feature.shape[1] == 1:
-        feature = feature.squeeze()
+    feature = torch.cat(features, dim=0).cpu().numpy()
     feature = feature.reshape((feature.shape[0], feature.shape[1], -1))
     feature = feature.mean(axis=(2))
     logging.info(feature.shape)
@@ -459,7 +448,7 @@ def infer_age_gender(batch, mtcnn=None, model=None):
                 continue
 
             predictions = []
-            for face in faces:
+            for j, face in enumerate(faces):
                 if face.shape[0] == 3:
                     face = face.transpose((1, 2, 0))
                 face = transform.resize(face, (128, 128))
@@ -471,6 +460,9 @@ def infer_age_gender(batch, mtcnn=None, model=None):
                         "male" if preds[2][0][0].item() < 0.5 else "female",
                     )
                 )
+                # save face as image for debugging
+                # face_img = Image.fromarray(np.clip(face * 255.0, 0, 255).astype(np.uint8))
+                # face_img.save(f"debug_face_{i}_{j}_{predictions[-1][2]}.jpg")
 
 
             age_i = [predictions[i][0] for i in range(len(predictions))]
@@ -501,7 +493,10 @@ def infer_ita(batch, mtcnn=None, model=None):
             if face.shape[0] == 3:
                 face = face.transpose((1, 2, 0))
             ita, _ = model.ITA(face)
-            ita_values.append(model.ita2str(float(ita))[0])
+            try:
+                ita_values.append(model.ita2str(float(ita))[0])
+            except Exception as e:
+                logging.error(f"Error converting ITA value to string: {e}")
         
         results.append(ita_values)
 
