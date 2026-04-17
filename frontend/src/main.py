@@ -1,6 +1,6 @@
 import streamlit as st
 from eisp import proxy_tasks
-from chart import get_chart, bars_csai_amount
+from frontend.src.chart import get_chart, bars_csai_amount
 import numpy as np
 import os
 import pandas as pd
@@ -10,18 +10,18 @@ def section_top():
     st.set_page_config(page_title="Visualização e Exploração de features", layout="wide")
     st.title("Visualização e Exploração de features")
     st.markdown("""
-    Esta seção permite a visualização e exploração de features extraídas da RCPD. Assumindo que as features já foram extraídas e estão em um arquivo features ou features_all. 
+    Esta seção permite a visualização e exploração de features de imagens. 
                 """)
 
 def section_config():
-    annotation_path = st.text_input("Caminho para o arquivo de anotação.", value="rcpd/rcpd_annotation_fix.csv")
-    if annotation_path:
-        if os.path.exists(annotation_path):
-            st.session_state['annotation_path'] = annotation_path
-            dfy = pd.read_csv(annotation_path)
+    xgboost_path = st.text_input("Caminho para o modelo treinado.", value="rcpd/rcpd_annotation_fix.csv")
+    if xgboost_path:
+        if os.path.exists(xgboost_path):
+            st.session_state['xgboost_path'] = xgboost_path
+            dfy = pd.read_csv(xgboost_path)
             st.session_state['dfy'] = dfy
         else:
-            st.error(f"O caminho '{annotation_path}' não existe. Por favor, insira um caminho válido.")
+            st.error(f"O caminho '{xgboost_path}' não existe. Por favor, insira um caminho válido.")
     folder_path = st.text_input("Caminho para as features", value="features/")
     if folder_path:
         if os.path.exists(folder_path):
