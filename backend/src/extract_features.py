@@ -112,8 +112,17 @@ def extract_features_from_list_of_ndarrays(list_of_ndarray: list) -> eisp.proxy_
         proxy_features_arguments,
         PROXY_TASKS_INFER_FUNCTIONS
     )
+
+    flattened_inference_results = {}
     for task_name, inference_result_batches in results.inference_results.items():
-        results.inference_results[task_name] = [result for batch in inference_result_batches for result in batch]
+        if task_name == "Age_Gender":
+            flattened_inference_results["age"] = [age_result for batch in inference_result_batches for age_result in batch[0]]
+            flattened_inference_results["child"] = [child_result for batch in inference_result_batches for child_result in batch[1]]
+            flattened_inference_results["gender"] = [gender_result for batch in inference_result_batches for gender_result in batch[2]]
+            
+        else:
+            flattened_inference_results[task_name] = [result for batch in inference_result_batches for result in batch]
+    results.inference_results = flattened_inference_results
         
     return results
 

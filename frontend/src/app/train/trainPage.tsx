@@ -1,7 +1,7 @@
 "use client";
 
 import { type InputHTMLAttributes, useEffect, useState } from "react";
-import { postTrain, TrainResponse } from "./services/trainService";
+import { postTrain, TrainResponse } from "../services/trainService";
     
 const directoryInputAttrs: InputHTMLAttributes<HTMLInputElement> & {
   webkitdirectory?: string;

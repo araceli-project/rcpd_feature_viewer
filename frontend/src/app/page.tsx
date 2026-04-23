@@ -1,7 +1,7 @@
 "use client";
-import AnalyzeFeatures from "./features";
+import AnalyzeFeatures from "./features/featuresPage";
 import { useState } from "react";
-import Train from "./train";
+import Train from "./train/trainPage";
 
 export default function Home() {
   const [view, setView] = useState<"analyze" | "train">("analyze");

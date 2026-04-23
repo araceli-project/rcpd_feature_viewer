@@ -6,11 +6,13 @@ import {
   getClassificationData,
   getMultipleResultsData,
   postFeatures,
-} from "./services/featuresService";
+} from "../services/featuresService";
 import {
   type FeatureData,
   renderFeatureData,
-} from "./visualizations/feature_data";
+} from "../d3_visualizations/feature_data";
+
+import GenerateFeatureVisualization from "./featureVisualizations"
 
 const directoryInputAttrs: InputHTMLAttributes<HTMLInputElement> & {
   webkitdirectory?: string;
@@ -24,10 +26,11 @@ export default function AnalyzeFeatures() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const [featureData, setFeatureData] = useState<FeatureData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [csaiModelName, setCsaiModelName] = useState<string | null>(null)
+  const [csaiModelName, setCsaiModelName] = useState<string | null>(null);
+  const [shouldRequestFeatures, setShouldRequestFeatures] = useState(true);
 
   useEffect(() => {
-    if (selectedFiles) {
+    if (selectedFiles && shouldRequestFeatures) {
       setLoading(true);
       const model_name = csaiModelName || localStorage.getItem("Model Name") || "";
       postFeatures(selectedFiles, model_name)
@@ -43,6 +46,14 @@ export default function AnalyzeFeatures() {
             classification_results,
             multiple_results,
           });
+          console.log("Multiple Results Data:", multiple_results);
+          localStorage.setItem("Features Data", JSON.stringify({
+            features: response.features,
+            proxy_tasks_names,
+            classification_results,
+            multiple_results,
+          }));
+          localStorage.setItem("File Names", JSON.stringify(Array.from(selectedFiles).map(file => file.name)));
         })
         .catch((error) => {
           console.error("Error fetching features:", error);
@@ -59,95 +70,43 @@ export default function AnalyzeFeatures() {
         Upload Images for Feature Analysis
       </h2>
 
-      <input
+      {!loading && <input
         className="border border-gray-300 rounded p-2 mb-4"
         type="text"
         id="modelNameInput"
         placeholder="Overwrite CSAI Model Name"
         onChange={(e) => setCsaiModelName(e.target.value)}
-      />
-      <input
+      />}
+      {!loading && <input
         className="border border-gray-300 rounded p-2 mb-4"
         type="file"
         id="dirInput"
         {...directoryInputAttrs}
         multiple
-        onChange={(e) => setSelectedFiles(e.target.files)}
-      />
+        onChange={(e) => {
+          setShouldRequestFeatures(true);
+          setSelectedFiles(e.target.files);
+        }}
+      />}
+      {!loading && <button
+        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 my-2 px-4 rounded"
+        onClick={() => {
+          setShouldRequestFeatures(false);
+          setFeatureData(localStorage.getItem("Features Data") ? JSON.parse(localStorage.getItem("Features Data") as string) : null);
+          setSelectedFiles(localStorage.getItem("File Names") ? JSON.parse(localStorage.getItem("File Names") as string) : null);
+        }}
+      >
+        Restore Last Features Data.
+      </button>}
+
       {loading && <p>Loading...</p>}
+
       {!loading && featureData && selectedFiles && (
         <GenerateFeatureVisualization
           featureData={featureData}
           selected_files={selectedFiles}
         />
       )}
-    </div>
-  );
-}
-
-function GenerateFeatureVisualization({
-  featureData,
-  selected_files,
-}: {
-  featureData: FeatureData;
-  selected_files: FileList;
-}) {
-  const [proxyTaskName, setProxyTaskName] = useState<string>(
-    featureData.proxy_tasks_names[0] || "",
-  );
-  const [colorByProxyTaskName, setColorByProxyTaskName] = useState<string>(
-    Object.keys(featureData.classification_results)?.[0] || "",
-  );
-
-  useEffect(() => {
-    if (proxyTaskName) {
-      try {
-        const svgElement = renderFeatureData(
-          featureData,
-          proxyTaskName,
-          selected_files,
-          colorByProxyTaskName,
-        );
-        const container = document.getElementById("feature-visualization");
-        if (container) {
-          container.innerHTML = "";
-          container.appendChild(svgElement);
-        }
-      } catch (error) {
-        console.error("Error rendering feature data:", error);
-      }
-    }
-  }, [featureData, proxyTaskName, colorByProxyTaskName, selected_files]);
-
-  return (
-    <div>
-      <label htmlFor="proxyTaskSelect">Select Proxy Task:</label>
-      <select
-        id="proxyTaskSelect"
-        value={proxyTaskName}
-        onChange={(e) => setProxyTaskName(e.target.value)}
-      >
-        {featureData.proxy_tasks_names
-          .filter((name) => featureData.features[name][0].length === 2)
-          .map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-      </select>
-      <select
-        id="colorByProxyTaskSelect"
-        value={colorByProxyTaskName}
-        onChange={(e) => setColorByProxyTaskName(e.target.value)}
-      >
-        <option value="">No Color Grouping</option>
-        {Object.keys(featureData.classification_results).map((name) => (
-          <option key={name} value={name}>
-            Color by {name}
-          </option>
-        ))}
-      </select>
-      <div id="feature-visualization" style={{ marginTop: "20px" }}></div>
     </div>
   );
 }

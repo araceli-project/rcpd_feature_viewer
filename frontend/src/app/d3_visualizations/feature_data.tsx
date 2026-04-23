@@ -155,7 +155,7 @@ export function renderFeatureData(
     .attr("transform", `translate(${margin.left},0)`)
     .call(d3.axisLeft(yScale));
 
-  svg
+  const circles = svg
     .append("g")
     .selectAll("circle")
     .data(pointData)
@@ -175,6 +175,7 @@ export function renderFeatureData(
       return colorScale(label);
     })
     .attr("fill-opacity", 0.75)
+    .attr("data-brushed", "false")
     .on("mouseenter", async function (event, { index }) {
       const imageFile = imageFiles[index];
       if (!imageFile) {
@@ -202,9 +203,63 @@ export function renderFeatureData(
       tooltip.raise();
     })
     .on("mouseleave", function () {
-      d3.select(this).attr("stroke", null).attr("stroke-width", null);
+      const circle = d3.select(this);
+      if (circle.attr("data-brushed") === "true") {
+        circle.attr("stroke", "#ffffff").attr("stroke-width", 1.5);
+      } else {
+        circle.attr("stroke", null).attr("stroke-width", null);
+      }
       tooltip.style("visibility", "hidden");
     });
+
+  const brush = d3
+    .brush<undefined>()
+    .extent([
+      [margin.left, margin.top],
+      [width - margin.right, height - margin.bottom],
+    ])
+    .on("brush end", (event) => {
+      const selection = event.selection as
+        | [[number, number], [number, number]]
+        | null;
+
+      if (!selection) {
+        circles
+          .attr("data-brushed", "false")
+          .attr("stroke", null)
+          .attr("stroke-width", null)
+          .attr("fill-opacity", 0.75);
+        svg
+          .node()
+          ?.dispatchEvent(new CustomEvent("points-brushed", { detail: [] }));
+        return;
+      }
+
+      const [[x0, y0], [x1, y1]] = selection;
+      const selectedIndices: number[] = [];
+      circles.each(function ({ x, y, index }) {
+        const cx = xScale(x);
+        const cy = yScale(y);
+        const isSelected = x0 <= cx && cx <= x1 && y0 <= cy && cy <= y1;
+        if (isSelected) {
+          selectedIndices.push(index);
+        }
+
+        d3.select(this)
+          .attr("data-brushed", isSelected ? "true" : "false")
+          .attr("stroke", isSelected ? "#ffffff" : null)
+          .attr("stroke-width", isSelected ? 1.5 : null)
+          .attr("fill-opacity", isSelected ? 1 : 0.2);
+      });
+
+      svg
+        .node()
+        ?.dispatchEvent(
+          new CustomEvent("points-brushed", { detail: selectedIndices }),
+        );
+    });
+
+  svg.append("g").attr("class", "brush-layer").call(brush);
 
   if (labelDomain.length > 0) {
     const legend = svg

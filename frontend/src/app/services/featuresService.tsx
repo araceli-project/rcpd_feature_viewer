@@ -6,6 +6,7 @@ export type FeaturesResponse = {
   >;
 };
 
+
 function getBackendBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
   if (envUrl) {
@@ -19,6 +20,38 @@ function getBackendBaseUrl(): string {
   }
 
   return "http://127.0.0.1:8000";
+}
+
+function postMultipartWithXhr(url: string, body: FormData): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", url);
+    request.responseType = "text";
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve(request.responseText);
+        return;
+      }
+      reject(
+        new Error(
+          `Features request failed (${request.status}): ${
+            request.responseText || request.statusText
+          }`,
+        ),
+      );
+    };
+    request.onerror = () => {
+      reject(
+        new Error(
+          `Browser failed to read response from ${url}. The backend may still be processing the features job.`,
+        ),
+      );
+    };
+    request.onabort = () => {
+      reject(new Error(`Features request to ${url} was aborted.`));
+    };
+    request.send(body);
+  });
 }
 
 export async function postFeatures(
@@ -40,27 +73,24 @@ export async function postFeatures(
   }
 
   const featuresUrl = `${getBackendBaseUrl()}/features`;
-  let response: Response;
+  let responseText: string;
   try {
-    response = await fetch(featuresUrl, {
-      method: "POST",
-      body: formData,
-    });
+    responseText = await postMultipartWithXhr(featuresUrl, formData);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Network request to ${featuresUrl} failed: ${message}`);
   }
 
-  if (!response.ok) {
-    const responseText = await response.text();
+  let result: FeaturesResponse;
+  try {
+    result = JSON.parse(responseText) as FeaturesResponse;
+  } catch {
     throw new Error(
-      `Features request failed (${response.status}): ${
-        responseText || response.statusText
-      }`,
+      `Features request succeeded but returned invalid JSON: ${responseText}`,
     );
   }
 
-  return (await response.json()) as FeaturesResponse;
+  return result;
 }
 
 export function getClassificationData(
@@ -69,8 +99,6 @@ export function getClassificationData(
   const classificationTaskNames = new Set([
     "Scenes_Places",
     "Nudity",
-    "ITA_Skin_Tone",
-    "Ita_Skin_tone",
     "csai",
   ]);
 
@@ -98,8 +126,32 @@ export function getClassificationData(
 }
 
 export function getMultipleResultsData(
-  _response: FeaturesResponse,
+  response: FeaturesResponse,
 ): Record<string, string[][]> {
+  const multipleResultsTaskNames = new Set(["Objects", "ITA_Skin_Tone", "age", "child", "gender"]);
   const multipleResultsData: Record<string, string[][]> = {};
+
+  const toStringArray = (value: unknown): string[] => {
+    if (typeof value === "string") {
+      return [value];
+    }
+    if (Array.isArray(value)) {
+      return value.flatMap((item) => toStringArray(item));
+    }
+    return [];
+  };
+
+
+  for (const [taskName, results] of Object.entries(response.inference_results)) {
+    if (!multipleResultsTaskNames.has(taskName)) {
+      continue;
+    }
+
+    multipleResultsData[taskName] = results.map((result) => {
+      const values = toStringArray(result);
+      return values.length > 0 ? values : ["unknown"];
+    });
+  }
+
   return multipleResultsData;
 }

@@ -442,9 +442,9 @@ def infer_age_gender(batch, mtcnn=None, model=None):
         for i, image in enumerate(batch):
             faces = get_face_imgs(image, mtcnn=mtcnn)
             if len(faces) == 0:
-                age.append("unknown")
-                child.append("unknown")
-                gender.append("unknown")
+                age.append(["no_faces"])
+                child.append(["no_faces"])
+                gender.append(["no_faces"])
                 continue
 
             predictions = []
@@ -472,7 +472,7 @@ def infer_age_gender(batch, mtcnn=None, model=None):
             child.append(child_i)
             gender.append(gender_i)
 
-    return {"age": age, "child": child, "gender": gender}
+    return [age, child, gender]
 
 
 def infer_ita(batch, mtcnn=None, model=None):
@@ -485,7 +485,7 @@ def infer_ita(batch, mtcnn=None, model=None):
     for image in batch:
         faces = get_face_imgs(image, mtcnn=mtcnn)
         if len(faces) == 0:
-            results.append("unknown")
+            results.append(["no_faces"])
             continue
 
         ita_values = []
