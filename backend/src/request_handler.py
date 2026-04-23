@@ -21,6 +21,20 @@ def _to_python_types(value):
     return value
 
 
+def _sanitize_features(features: np.ndarray) -> np.ndarray:
+    clean_features = np.asarray(features, dtype=np.float64)
+    finite_mask = np.isfinite(clean_features)
+    if finite_mask.all():
+        return clean_features
+
+    col_means = np.nanmean(np.where(finite_mask, clean_features, np.nan), axis=0)
+    col_means = np.nan_to_num(col_means, nan=0.0, posinf=0.0, neginf=0.0)
+    clean_features = clean_features.copy()
+    invalid_rows, invalid_cols = np.where(~finite_mask)
+    clean_features[invalid_rows, invalid_cols] = col_means[invalid_cols]
+    return clean_features
+
+
 def process_images(list_of_ndarray: list, csai_model_name: str = ""):
     feature_vectors = extract_features_from_list_of_ndarrays(list_of_ndarray)
     inference_results = feature_vectors.inference_results
@@ -35,11 +49,14 @@ def process_images(list_of_ndarray: list, csai_model_name: str = ""):
 
     features_pca: eisp.proxy_tasks.FeatureVectors = feature_vectors.apply_pca()[0]
 
-    features_dict = features_pca.get_all_features()
+    features_dict = {
+        name: _sanitize_features(features)
+        for name, features in features_pca.get_all_features().items()
+    }
 
     # Process with TSNE
     concatenated_features = np.concatenate(list(features_dict.values()), axis=1)
-    features_dict["Concatenated"] = concatenated_features
+    features_dict["Concatenated"] = _sanitize_features(concatenated_features)
 
     for name, features in features_dict.items():
         if features.shape[0] < 2 or features.shape[1] <= 2:

@@ -2,16 +2,22 @@ import asyncio
 import json
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import TypeAdapter, ValidationError
 from starlette.datastructures import UploadFile as StarletteUploadFile
-from typing import Annotated
 
 from download_models import download_models
 from request_handler import process_images, train_model
 
 download_models()
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 bool_list_adapter = TypeAdapter(list[bool])
 
 
@@ -41,14 +47,23 @@ def health_check():
     return {"status": "ok"}
 
 @app.post("/features")
-async def features(
-    images: Annotated[list[UploadFile], File(...)],
-    model_name: Annotated[str, Form()] = "",
-):
+async def features(request: Request):
+    form = await request.form(max_files=5000, max_fields=10000)
+    images = form.getlist("images")
+    model_name = form.get("model_name", "")
+
     if not images:
         raise HTTPException(status_code=400, detail="No images provided")
+    if not isinstance(model_name, str):
+        raise HTTPException(status_code=400, detail="Invalid model_name field")
 
-    image_arrays = await _parse_images(images)
+    upload_files: list[StarletteUploadFile] = []
+    for image in images:
+        if not isinstance(image, StarletteUploadFile):
+            raise HTTPException(status_code=400, detail="Invalid images field")
+        upload_files.append(image)
+
+    image_arrays = await _parse_images(upload_files)
     model_name = model_name.strip()
 
     try:

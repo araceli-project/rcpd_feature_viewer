@@ -105,13 +105,17 @@ def extract_features_from_list_of_ndarrays(list_of_ndarray: list) -> eisp.proxy_
 
     proxy_features_arguments = [gen() for gen in PROXY_FEATURES_ARGUMENTS_GENERATORS]
 
-    return eisp.proxy_tasks.FeatureVectors.extract_and_infer(
+    results: eisp.proxy_tasks.FeatureVectors = eisp.proxy_tasks.FeatureVectors.extract_and_infer(
         dataloader,
         PROXY_FEATURES_FUNCTIONS,
         PROXY_FEATURES_NAMES,
         proxy_features_arguments,
         PROXY_TASKS_INFER_FUNCTIONS
     )
+    for task_name, inference_result_batches in results.inference_results.items():
+        results.inference_results[task_name] = [result for batch in inference_result_batches for result in batch]
+        
+    return results
 
 
 def extract_features_no_infer_from_list_of_ndarrays(list_of_ndarray: list) -> eisp.proxy_tasks.FeatureVectors:
