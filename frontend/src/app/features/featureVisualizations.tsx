@@ -1,7 +1,9 @@
-import { FeatureData } from "../d3_visualizations/feature_data";
-import { renderFeatureData } from "../d3_visualizations/feature_data";
 import { useEffect, useState } from "react";
-import  GenerateSelectionVisualization from "./selectionVisualizations";
+import {
+  type FeatureData,
+  renderFeatureData,
+} from "../d3_visualizations/feature_data";
+import GenerateSelectionVisualization from "./selectionVisualizations";
 
 export default function GenerateFeatureVisualization({
   featureData,
@@ -16,7 +18,9 @@ export default function GenerateFeatureVisualization({
   const [colorByProxyTaskName, setColorByProxyTaskName] = useState<string>(
     Object.keys(featureData.classification_results)?.[0] || "",
   );
-  const [selectedPointIndices, setSelectedPointIndices] = useState<number[]>([]);
+  const [selectedPointIndices, setSelectedPointIndices] = useState<number[]>(
+    [],
+  );
 
   useEffect(() => {
     if (proxyTaskName) {
@@ -30,7 +34,7 @@ export default function GenerateFeatureVisualization({
         const handlePointsBrushed = (event: Event) => {
           const { detail } = event as CustomEvent<number[]>;
           setSelectedPointIndices(detail);
-        }
+        };
         svgElement.addEventListener("points-brushed", handlePointsBrushed);
 
         const container = document.getElementById("feature-visualization");
@@ -77,14 +81,12 @@ export default function GenerateFeatureVisualization({
       </select>
       <div id="feature-visualization" style={{ marginTop: "20px" }}></div>
 
-        {selectedPointIndices.length > 0 && (
-            <GenerateSelectionVisualization
-              selectedPointIndices={selectedPointIndices}
-              featureData={featureData}
-            />
-          )}
-
+      {selectedPointIndices.length > 0 && (
+        <GenerateSelectionVisualization
+          selectedPointIndices={selectedPointIndices}
+          featureData={featureData}
+        />
+      )}
     </div>
-    
   );
 }

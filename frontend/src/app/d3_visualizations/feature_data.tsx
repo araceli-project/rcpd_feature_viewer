@@ -9,7 +9,7 @@ export type FeatureData = {
   multiple_results: Record<string, string[][]>;
 };
 
-type RenderFeatureDataOptions = {
+export type RenderFeatureDataOptions = {
   width?: number;
   height?: number;
   pointRadius?: number;
@@ -80,7 +80,9 @@ export function renderFeatureData(
     .domain(labelDomain)
     .range(d3.schemeTableau10);
 
-  const imageFiles = Array.from(images);
+  const imageFiles = Array.from(images).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
   const imageDataUrlCache = new Map<number, string>();
 
   const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -145,18 +147,21 @@ export function renderFeatureData(
     tooltip.attr("transform", `translate(${x},${y})`);
   };
 
-  svg
+  const plotLayer = svg.append("g").attr("class", "plot-layer");
+  const brushLayer = plotLayer.append("g").attr("class", "brush-layer");
+  const pointsLayer = plotLayer.append("g").attr("class", "points-layer");
+
+  plotLayer
     .append("g")
     .attr("transform", `translate(0,${height - margin.bottom})`)
     .call(d3.axisBottom(xScale));
 
-  svg
+  plotLayer
     .append("g")
     .attr("transform", `translate(${margin.left},0)`)
     .call(d3.axisLeft(yScale));
 
-  const circles = svg
-    .append("g")
+  const circles = pointsLayer
     .selectAll("circle")
     .data(pointData)
     .join("circle")
@@ -259,7 +264,7 @@ export function renderFeatureData(
         );
     });
 
-  svg.append("g").attr("class", "brush-layer").call(brush);
+  brushLayer.call(brush);
 
   if (labelDomain.length > 0) {
     const legend = svg

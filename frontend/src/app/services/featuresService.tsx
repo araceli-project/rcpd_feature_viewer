@@ -6,7 +6,6 @@ export type FeaturesResponse = {
   >;
 };
 
-
 function getBackendBaseUrl(): string {
   const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL?.trim();
   if (envUrl) {
@@ -58,7 +57,9 @@ export async function postFeatures(
   files: File[] | FileList,
   modelName?: string,
 ): Promise<FeaturesResponse> {
-  const fileArray = Array.from(files);
+  const fileArray = Array.from(files).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
   if (fileArray.length === 0) {
     throw new Error("At least one file is required.");
   }
@@ -96,11 +97,7 @@ export async function postFeatures(
 export function getClassificationData(
   response: FeaturesResponse,
 ): Record<string, string[]> {
-  const classificationTaskNames = new Set([
-    "Scenes_Places",
-    "Nudity",
-    "csai",
-  ]);
+  const classificationTaskNames = new Set(["Scenes_Places", "Nudity", "csai"]);
 
   const toLabel = (value: unknown): string => {
     if (typeof value === "string") {
@@ -128,7 +125,13 @@ export function getClassificationData(
 export function getMultipleResultsData(
   response: FeaturesResponse,
 ): Record<string, string[][]> {
-  const multipleResultsTaskNames = new Set(["Objects", "ITA_Skin_Tone", "age", "child", "gender"]);
+  const multipleResultsTaskNames = new Set([
+    "Objects",
+    "ITA_Skin_Tone",
+    "age",
+    "child",
+    "gender",
+  ]);
   const multipleResultsData: Record<string, string[][]> = {};
 
   const toStringArray = (value: unknown): string[] => {
@@ -141,8 +144,9 @@ export function getMultipleResultsData(
     return [];
   };
 
-
-  for (const [taskName, results] of Object.entries(response.inference_results)) {
+  for (const [taskName, results] of Object.entries(
+    response.inference_results,
+  )) {
     if (!multipleResultsTaskNames.has(taskName)) {
       continue;
     }
