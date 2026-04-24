@@ -59,10 +59,10 @@ export default function GenerateFeatureVisualization({
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
-      <h1 className="text-5xl font-bold text-center sm:text-left py-8">
+      <h1 className="text-3xl font-bold text-center sm:text-left py-8">
         Feature Visualization
       </h1>
-    <div className="py-2 flex flex-row items-center justify-start gap-4">
+    <div className="py-2 flex flex-row items-center justify-center gap-4">
       <div>
       <label htmlFor="proxyTaskSelect">Select Proxy Task: </label>
       <select
@@ -106,10 +106,10 @@ export default function GenerateFeatureVisualization({
       <div>
         {selectedPointIndices.length > 0 && !shouldHaveSecondSelection && (
           <button
-            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 my-2 px-4 rounded"
+            className="bg-[var(--accent-2)] hover:bg-[var(--accent-1)] text-white font-bold py-2 my-2 px-4 rounded"
             onClick={() => setShouldHaveSecondSelection(true)}
           >
-            Add Second Selection Visualization
+            +
           </button>
         )}
         {selectedPointIndices.length > 0 && shouldHaveSecondSelection && (

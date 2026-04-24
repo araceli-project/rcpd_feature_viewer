@@ -69,10 +69,10 @@ export default function AnalyzeFeatures() {
       <h1 className="text-5xl font-bold text-center sm:text-left py-8">
         Feature Analysis
       </h1>
-      <h2 className="text-xl font-bold mb-2">
-        Please select a directory containing the images to be analyzed.
+      <h2 className="text-xl font-bold mb-2 text-center sm:text-center">
+        Please select a directory containing the images to be analyzed, and if desired specify a csai model name.
       </h2>
-
+      <div className="flex flex-row items-center justify-center gap-4">
       {!loading && (
         <input
           className="border border-gray-300 rounded p-2 mb-4 py-4"
@@ -89,7 +89,7 @@ export default function AnalyzeFeatures() {
 
       {!loading && (
         <input
-          className="border border-gray-300 rounded p-2 mb-4"
+          className="border border-gray-300 rounded p-2 mb-4 py-4"
           type="text"
           id="modelNameInput"
           placeholder="Overwrite CSAI Model Name"
@@ -100,9 +100,12 @@ export default function AnalyzeFeatures() {
         />
       )}
 
+      </div>
+
+      <div className="flex flex-row items-center justify-center gap-4">
       {!loading && (
         <button
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 my-2 px-4 rounded"
+          className="bg-[var(--accent-2)] hover:bg-[var(--accent-1)] text-white font-bold py-2 my-2 px-4 rounded"
           type="button"
           onClick={() => {
             setShouldRequestFeatures(true);
@@ -114,7 +117,7 @@ export default function AnalyzeFeatures() {
 
       {!loading && (
         <button
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 my-2 px-4 rounded"
+          className="bg-[var(--accent-2)] hover:bg-[var(--accent-1)] text-white font-bold py-2 my-2 px-4 rounded"
           type="button"
           onClick={() => {
             setShouldRequestFeatures(false);
@@ -128,6 +131,10 @@ export default function AnalyzeFeatures() {
           Restore Last Features Data.
         </button>
       )}
+
+      </div>
+
+
 
       {loading && <p>Loading...</p>}
 
