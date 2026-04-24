@@ -317,3 +317,107 @@ export function renderFeatureData(
 
   return svg.node() as SVGSVGElement;
 }
+
+export function renderSelectedFeatureData(
+  featureData: FeatureData,
+  proxyTaskName: string,
+  selectedPointIndices: number[],
+  options: RenderFeatureDataOptions = {},
+): SVGSVGElement {
+  const points = featureData.features[proxyTaskName];
+  if (!points) {
+    throw new Error(
+      `Proxy task "${proxyTaskName}" was not found in features data.`,
+    );
+  }
+
+  const pointData = points
+    .map(([x, y], index) => ({ x, y, index }))
+    .filter(({ x, y }) => Number.isFinite(x) && Number.isFinite(y));
+  if (pointData.length === 0) {
+    throw new Error(
+      `Proxy task "${proxyTaskName}" does not contain valid points.`,
+    );
+  }
+
+  const width = options.width ?? 720;
+  const height = options.height ?? 480;
+  const pointRadius = options.pointRadius ?? 3.5;
+  const margin = {
+    top: 24,
+    right: 24,
+    bottom: 44,
+    left: 52,
+  };
+
+  const xExtent = d3.extent(pointData, ({ x }) => x) as [number, number];
+  const yExtent = d3.extent(pointData, ({ y }) => y) as [number, number];
+
+  const xScale = d3
+    .scaleLinear()
+    .domain(xExtent)
+    .nice()
+    .range([margin.left, width - margin.right]);
+
+  const yScale = d3
+    .scaleLinear()
+    .domain(yExtent)
+    .nice()
+    .range([height - margin.bottom, margin.top]);
+
+  const selectedIndices = new Set(selectedPointIndices);
+  const hasSelection = selectedIndices.size > 0;
+
+  const svg = d3
+    .create("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .attr("role", "img")
+    .attr("aria-label", `${proxyTaskName} feature scatter plot`);
+
+  const plotLayer = svg.append("g").attr("class", "plot-layer");
+  const pointsLayer = plotLayer.append("g").attr("class", "points-layer");
+
+  plotLayer
+    .append("g")
+    .attr("transform", `translate(0,${height - margin.bottom})`)
+    .call(d3.axisBottom(xScale));
+
+  plotLayer
+    .append("g")
+    .attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(yScale));
+
+  pointsLayer
+    .selectAll("circle")
+    .data(pointData)
+    .join("circle")
+    .attr("cx", ({ x }) => xScale(x))
+    .attr("cy", ({ y }) => yScale(y))
+    .attr("r", pointRadius)
+    .attr("fill", ({ index }) =>
+      selectedIndices.has(index) ? "#f59e0b" : "#2563eb",
+    )
+    .attr("fill-opacity", ({ index }) =>
+      !hasSelection || selectedIndices.has(index) ? 0.9 : 0.4,
+    )
+    .attr("stroke", ({ index }) =>
+      selectedIndices.has(index) ? "#ffffff" : null,
+    )
+    .attr("stroke-width", ({ index }) =>
+      selectedIndices.has(index) ? 1.5 : null,
+    );
+
+  svg
+    .append("text")
+    .attr("x", width / 2)
+    .attr("y", margin.top - 6)
+    .attr("text-anchor", "middle")
+    .attr("font-size", 14)
+    .attr("font-weight", 600)
+    .attr("fill", "#ffffff")
+    .text(`${proxyTaskName} Scatter Plot (Selected Points)`);
+
+  return svg.node() as SVGSVGElement;
+}

@@ -3,9 +3,10 @@ import {
   classificationBarChart,
   classificationPieChart,
 } from "../d3_visualizations/classification_plots";
-import type {
+import {
   FeatureData,
   RenderFeatureDataOptions,
+  renderSelectedFeatureData,
 } from "../d3_visualizations/feature_data";
 import {
   multipleDataBarChart,
@@ -15,9 +16,13 @@ import {
 export default function GenerateSelectionVisualization({
   selectedPointIndices,
   featureData,
+  shouldPlotScatter,
+  renderOptions,
 }: {
   selectedPointIndices: number[];
   featureData: FeatureData;
+  shouldPlotScatter: boolean;
+  renderOptions?: RenderFeatureDataOptions;
 }) {
   const possibleProxyTaskNames = Object.keys(
     featureData.classification_results,
@@ -25,10 +30,6 @@ export default function GenerateSelectionVisualization({
   const [selectedProxyTaskName, setSelectedProxyTaskName] = useState<string>(
     possibleProxyTaskNames[0] || "",
   );
-  const renderOptions: RenderFeatureDataOptions = {
-    width: window.innerWidth * 0.4,
-    height: window.innerHeight * 0.4,
-  };
 
   useEffect(() => {
     if (selectedProxyTaskName) {
@@ -73,6 +74,19 @@ export default function GenerateSelectionVisualization({
           if (container) {
             container.appendChild(multipleBarSvgElement);
             container.appendChild(multiplePieSvgElement);
+          }
+        }
+
+        const featureToPlot = selectedProxyTaskName === "age" || selectedProxyTaskName === "child" || selectedProxyTaskName === "gender" ? "Age_Gender" : selectedProxyTaskName;
+        if (shouldPlotScatter && featureData.features[featureToPlot] && featureData.features[featureToPlot][0].length == 2) {
+          const selectedRendered = renderSelectedFeatureData(
+            featureData,
+            featureToPlot,
+            selectedPointIndices,
+            renderOptions
+          );
+          if (container) {
+            container.appendChild(selectedRendered);
           }
         }
       } catch (error) {
