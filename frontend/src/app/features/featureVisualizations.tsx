@@ -22,6 +22,7 @@ export default function GenerateFeatureVisualization({
   const [selectedPointIndices, setSelectedPointIndices] = useState<number[]>(
     [],
   );
+  const [shouldHaveSecondSelection, setShouldHaveSecondSelection] = useState(false);
 
   useEffect(() => {
     if (proxyTaskName) {
@@ -58,6 +59,9 @@ export default function GenerateFeatureVisualization({
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
+      <h1 className="text-5xl font-bold text-center sm:text-left py-8">
+        Feature Visualization
+      </h1>
     <div className="py-2 flex flex-row items-center justify-start gap-4">
       <div>
       <label htmlFor="proxyTaskSelect">Select Proxy Task: </label>
@@ -92,16 +96,38 @@ export default function GenerateFeatureVisualization({
       </div>
       {selectedPointIndices.length > 0 && (
         <GenerateSelectionVisualization
+          id_number={1}
           selectedPointIndices={selectedPointIndices}
           featureData={featureData}
           shouldPlotScatter={true}
-          renderOptions={{width: window.innerWidth * 0.2, height: window.innerHeight * 0.2}}
+          renderOptions={{width: window.innerWidth * 0.25, height: window.innerHeight * 0.25}}
         />
       )}
+      <div>
+        {selectedPointIndices.length > 0 && !shouldHaveSecondSelection && (
+          <button
+            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 my-2 px-4 rounded"
+            onClick={() => setShouldHaveSecondSelection(true)}
+          >
+            Add Second Selection Visualization
+          </button>
+        )}
+        {selectedPointIndices.length > 0 && shouldHaveSecondSelection && (
+          <GenerateSelectionVisualization
+            id_number={2}
+            selectedPointIndices={selectedPointIndices}
+            featureData={featureData}
+            shouldPlotScatter={true}
+            renderOptions={{width: window.innerWidth * 0.25, height: window.innerHeight * 0.25}}
+          />
+        )}
+
+      </div>
     </div>
     <div>
       <h2 className="text-xl font-bold mb-2">General Dataset Visualization</h2>
       <GenerateSelectionVisualization
+        id_number={3}
         featureData={featureData}
         selectedPointIndices={Array.from({ length: featureData.features[Object.keys(featureData.features)[0]].length }, (_, i) => i)}
         shouldPlotScatter={false}

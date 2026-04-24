@@ -66,9 +66,26 @@ export default function AnalyzeFeatures() {
 
   return (
     <div className="w-full flex flex-col items-center">
-      <h2 className="text-2xl font-bold mb-4">
-        Upload Images for Feature Analysis
+      <h1 className="text-5xl font-bold text-center sm:text-left py-8">
+        Feature Analysis
+      </h1>
+      <h2 className="text-xl font-bold mb-2">
+        Please select a directory containing the images to be analyzed.
       </h2>
+
+      {!loading && (
+        <input
+          className="border border-gray-300 rounded p-2 mb-4 py-4"
+          type="file"
+          id="dirInput"
+          {...directoryInputAttrs}
+          multiple
+          onChange={(e) => {
+            setShouldRequestFeatures(false);
+            setSelectedFiles(e.target.files);
+          }}
+        />
+      )}
 
       {!loading && (
         <input
@@ -79,19 +96,6 @@ export default function AnalyzeFeatures() {
           onChange={(e) => {
             setShouldRequestFeatures(false);
             setCsaiModelName(e.target.value);
-          }}
-        />
-      )}
-      {!loading && (
-        <input
-          className="border border-gray-300 rounded p-2 mb-4"
-          type="file"
-          id="dirInput"
-          {...directoryInputAttrs}
-          multiple
-          onChange={(e) => {
-            setShouldRequestFeatures(false);
-            setSelectedFiles(e.target.files);
           }}
         />
       )}

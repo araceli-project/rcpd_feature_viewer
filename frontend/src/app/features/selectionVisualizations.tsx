@@ -18,11 +18,13 @@ export default function GenerateSelectionVisualization({
   featureData,
   shouldPlotScatter,
   renderOptions,
+  id_number,
 }: {
   selectedPointIndices: number[];
   featureData: FeatureData;
   shouldPlotScatter: boolean;
   renderOptions?: RenderFeatureDataOptions;
+  id_number: number;
 }) {
   const possibleProxyTaskNames = Object.keys(
     featureData.classification_results,
@@ -34,7 +36,7 @@ export default function GenerateSelectionVisualization({
   useEffect(() => {
     if (selectedProxyTaskName) {
       try {
-        const container = document.getElementById("selection-visualization");
+        const container = document.getElementById(`selection-visualization-${id_number}`);
         if (container) {
           container.innerHTML = "";
         }
@@ -108,7 +110,7 @@ export default function GenerateSelectionVisualization({
           </option>
         ))}
       </select>
-      <div id="selection-visualization" className="py-4"></div>
+      <div id={`selection-visualization-${id_number}`} className="py-4"></div>
     </div>
   );
 }
